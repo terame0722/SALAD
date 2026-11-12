@@ -24,7 +24,7 @@ def test_all():
     # create output dir
     train_output_dir = os.path.join(config.output_dir, config.category)
     os.makedirs(train_output_dir, exist_ok=True)
-    
+
     full_train_set = ImageFolderWithoutTarget(
         os.path.join(dataset_path, config.category, 'train'),
         transform=transforms.Lambda(train_transform))
@@ -42,7 +42,7 @@ def test_all():
         transform=default_transform)
     test_set.seg = False
     test_seg_set.seg = True
-    
+
     full_train_set = ImageFolderWithoutTargetWithSeg(full_train_set, full_train_seg_set)
     test_set = ImageFolderWithPathWithSeg(test_set, test_seg_set)
 
@@ -62,14 +62,14 @@ def test_all():
     train_loader = DataLoader(train_set, batch_size=1, shuffle=True,
                               num_workers=4, pin_memory=True)
     validation_loader = DataLoader(validation_set, batch_size=1)
-    
+
 
     teacher = torch.load(f"{train_output_dir}/teacher_final.pth")
     autoencoder = torch.load(f"{train_output_dir}/autoencoder_final.pth")
     student = torch.load(f"{train_output_dir}/student_final.pth")
     comp_ae = torch.load(f"{train_output_dir}/comp_autoencoder_final.pth")
     comp_unet = torch.load(f"{train_output_dir}/comp_unet_final.pth")
-    
+
 
     # teacher frozen
 
@@ -86,7 +86,7 @@ def test_all():
     comp_ae.eval()
     comp_unet.eval()
 
-    teacher_mean, teacher_std = teacher_normalization(teacher, train_loader)    
+    teacher_mean, teacher_std = teacher_normalization(teacher, train_loader)
 
     q_st_start, q_st_end, q_ae_start, q_ae_end = map_normalization(
         validation_loader=validation_loader, teacher=teacher, student=student,
@@ -98,11 +98,11 @@ def test_all():
         teacher_std=teacher_std, q_st_start=q_st_start, q_st_end=q_st_end, q_ae_start=q_ae_start, q_ae_end=q_ae_end, desc='Final score normalization')
     feature_vectors_mean, feature_vectors_covinv, feature_vectors_mean_seg, feature_vectors_covinv_seg, feature_vectors_mean_seg_area, feature_vectors_covinv_seg_area = extract_features_mahalanobis(train_loader, train_set, student, teacher_mean, teacher_std)
     q_start_mah, q_end_mah = map_normalization_mahalanobis(validation_loader, student, teacher_mean, teacher_std, feature_vectors_covinv, feature_vectors_mean, feature_vectors_covinv_seg, feature_vectors_mean_seg, feature_vectors_covinv_seg_area, feature_vectors_mean_seg_area)
-    auc, auc_img, auc_mlp, auc_comp = test(
+    auc, auc_img, auc_mlp, auc_comp, detailed_auc = test(
         test_set=test_set, teacher=teacher, student=student, comp_ae=comp_ae, comp_unet=comp_unet,
         autoencoder=autoencoder, teacher_mean=teacher_mean,
         teacher_std=teacher_std, feature_vectors_covinv=feature_vectors_covinv, feature_vectors_mean=feature_vectors_mean, feature_vectors_covinv_seg=feature_vectors_covinv_seg, feature_vectors_mean_seg=feature_vectors_mean_seg, feature_vectors_covinv_seg_area=feature_vectors_covinv_seg_area, feature_vectors_mean_seg_area=feature_vectors_mean_seg_area,
-        q_st_start=q_st_start, q_st_end=q_st_end, q_ae_start=q_ae_start, q_eff_start=q_eff_start, q_eff_end=q_eff_end, q_ae_end=q_ae_end, q_seg_start=q_seg_start, q_seg_end=q_seg_end, q_start_mah=q_start_mah, q_end_mah=q_end_mah, desc='Final inference')
+        q_st_start=q_st_start, q_st_end=q_st_end, q_ae_start=q_ae_start, q_eff_start=q_eff_start, q_eff_end=q_eff_end, q_ae_end=q_ae_end, q_seg_start=q_seg_start, q_seg_end=q_seg_end, q_start_mah=q_start_mah, q_end_mah=q_end_mah, desc='Final inference', return_details=True)
     print('Final image auc: {:.4f}, img {:.4f}, mlp {:.4f}, comp {:.4f}'.format(auc, auc_img, auc_mlp, auc_comp))
     results = {
         "Iteration": [-1],
@@ -110,9 +110,11 @@ def test_all():
         "AUC": [auc],
         "AUC Img": [auc_img],
         "AUC Maha": [auc_mlp],
-        "AUC Comp": [auc_comp]
+        "AUC Comp": [auc_comp],
     }
-    log(train_output_dir,results)
+    for name, value in detailed_auc.items():
+        results[name] = [value]
+    log(train_output_dir, results)
 
 
 if __name__ == '__main__':

@@ -347,7 +347,7 @@ def test(test_set, teacher, student, autoencoder, comp_ae, comp_unet,
          teacher_mean, teacher_std,
          feature_vectors_covinv, feature_vectors_mean, feature_vectors_covinv_seg, feature_vectors_mean_seg, feature_vectors_covinv_seg_area, feature_vectors_mean_seg_area,
          q_st_start, q_st_end, q_ae_start, q_ae_end, q_eff_start, q_eff_end, q_seg_start, q_seg_end, q_start_mah, q_end_mah,
-         desc='Running inference'):
+         desc='Running inference', return_details=False):
     y_true = {"good":[],"logical_anomalies":[],"structural_anomalies":[]}
     y_score_no_mah = {"good":[],"logical_anomalies":[],"structural_anomalies":[]}
     y_score_mah = {"good":[],"logical_anomalies":[],"structural_anomalies":[]}
@@ -411,7 +411,22 @@ def test(test_set, teacher, student, autoencoder, comp_ae, comp_unet,
     print(f"Img Logical: {auc_log_no_mah*100}, Struct: {auc_str_no_mah*100}")
     print(f"Comp Logical: {auc_log_comp*100}, Struct: {auc_str_comp*100}")
     print("")
-    return auc * 100, auc_img * 100 , auc_mlp * 100, auc_comp*100
+
+    detailed_auc = {
+        "All Logical": auc_log * 100,
+        "All Struct": auc_str * 100,
+        "Maha Logical": auc_log_mah * 100,
+        "Maha Struct": auc_str_mah * 100,
+        "Img Logical": auc_log_no_mah * 100,
+        "Img Struct": auc_str_no_mah * 100,
+        "Comp Logical": auc_log_comp * 100,
+        "Comp Struct": auc_str_comp * 100,
+    }
+    
+    if return_details:
+        return auc * 100, auc_img * 100, auc_mlp * 100, auc_comp * 100, detailed_auc
+
+    return auc * 100, auc_img * 100, auc_mlp * 100, auc_comp * 100
 
 @torch.no_grad()
 def predict_comp_map(seg, comp_ae, comp_unet):
